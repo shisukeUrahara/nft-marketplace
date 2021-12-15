@@ -5,10 +5,12 @@ contract ERC721 {
     // state variables
     mapping(uint256=>address) private _tokenOwner;
     mapping(address=>uint256) private _ownedTokensCount;
+    // Mapping from token id to approved addresses
+    mapping(uint256 => address) private _tokenApprovals; 
 
     // events 
-    event Transfer(address from,address to,uint256 tokenId);
-
+    event Transfer(address indexed from,address indexed to,uint256 indexed tokenId);
+    event Approval(address indexed owner,address indexed approved,uint256 indexed tokenId);
 
     // constructor 
 
@@ -19,13 +21,22 @@ contract ERC721 {
        return _ownedTokensCount[_owner];
    }
 
+      function _exists(uint256 tokenId) internal view returns(bool){
+        // setting the address of nft owner to check the mapping
+        // of the address from tokenOwner at the tokenId 
+         address owner = _tokenOwner[tokenId];
+         // return truthiness tha address is not zero
+         return owner != address(0);
+    }
+
+
    function ownerOf(uint256 _tokenId) public view returns(address) {
        require(_tokenOwner[_tokenId]!=address(0),'ERC721: Token doesnot exists');
        return _tokenOwner[_tokenId];
    }
 
    function _mint(address _to,uint256 _tokenId) internal  virtual{
-       require(_to!=address(0),'ERC721: Invalid mint address');
+       require(!_exists(_tokenId),'ERC721: Invalid mint address');
        require(_tokenOwner[_tokenId]==address(0),'ERC721: Token Already minted');
        _tokenOwner[_tokenId] = _to;
        _ownedTokensCount[_to]++;
@@ -55,9 +66,28 @@ contract ERC721 {
     }
 
     function transferFrom(address _from, address _to, uint256 _tokenId)  public {
-        // require(isApprovedOrOwner(msg.sender, _tokenId));
+        require(isApprovedOrOwner(msg.sender, _tokenId));
         _transferFrom(_from, _to, _tokenId);
+    }
 
+
+        // 1. require that the person approving is the owner
+    // 2. we are approving an address to a token (tokenId)
+    // 3. require that we cant approve sending tokens of the owner to the owner (current caller)
+    // 4. update the map of the approval addresses
+
+    function approve(address _to, uint256 tokenId) public {
+        address owner = ownerOf(tokenId);
+        require(_to != owner, 'Error - approval to current owner');
+        require(msg.sender == owner, 'Current caller is not the owner of the token');
+        _tokenApprovals[tokenId] = _to;
+        emit Approval(owner, _to, tokenId);
+    } 
+
+    function isApprovedOrOwner(address spender, uint256 tokenId) internal view returns(bool) {
+        require(_exists(tokenId), 'token does not exist');
+        address owner = ownerOf(tokenId);
+        return(spender == owner); 
     }
 
  
